@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1a472a">
+    <title>Navigation Debug</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: #0a0e0d;
+            color: #e8f5e9;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+        header {
+            background: linear-gradient(135deg, #1a472a 0%, #2d6e45 100%);
+            padding: 20px;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #f4a500;
+            border-radius: 8px;
+        }
+        h1 { font-size: 1.8em; font-weight: 800; margin-bottom: 5px; }
+        .subtitle { font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: #81c784; }
+        .card {
+            background: #1a1f1e;
+            border: 2px solid #2d6e45;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+        .debug-zone {
+            background: #0f1419;
+            border: 1px solid #f4a500;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85em;
+            line-height: 1.6;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+        .debug-line {
+            margin: 5px 0;
+            padding: 2px 0;
+        }
+        .debug-info { color: #81c784; }
+        .debug-success { color: #4caf50; }
+        .debug-error { color: #f44336; }
+        .debug-warning { color: #ff9800; }
+        button {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #1a472a 0%, #2d6e45 100%);
+            border: 2px solid #f4a500;
+            border-radius: 8px;
+            color: #e8f5e9;
+            font-size: 1.1em;
+            font-weight: 700;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+        button.success { background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%); border-color: #81c784; }
+        input[type="file"] {
+            width: 100%;
+            padding: 15px;
+            background: rgba(42, 78, 55, 0.3);
+            border: 2px dashed #2d6e45;
+            border-radius: 8px;
+            color: #e8f5e9;
+            cursor: pointer;
+            margin-bottom: 15px;
+        }
+        .url-display {
+            background: #f5f5f5;
+            color: #333;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85em;
+            word-break: break-all;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔍 Navigation Debug</h1>
+            <div class="subtitle">Diagnostic Complet</div>
+        </header>
+
+        <div class="card">
+            <h2 style="margin-bottom: 15px; color: #f4a500;">📊 Informations Debug</h2>
+            <div id="debugZone" class="debug-zone">
+                <div class="debug-line debug-info">Initialisation du debug...</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 style="margin-bottom: 15px; color: #f4a500;">🌐 URL Actuelle</h2>
+            <div id="urlDisplay" class="url-display">Chargement...</div>
+        </div>
+
+        <div class="card">
+            <h2 style="margin-bottom: 15px; color: #f4a500;">⚙️ Actions</h2>
+            
+            <button id="testUrlBtn" class="success">
+                🔄 Tester URL Auto-Chargement
+            </button>
+            
+            <button onclick="document.getElementById('fileInput').click()">
+                📂 Choisir Fichier JSON Manuellement
+            </button>
+            
+            <input type="file" id="fileInput" accept=".json" style="display: none;">
+            
+            <button onclick="testCORS()">
+                🌐 Tester Proxy CORS
+            </button>
+        </div>
+
+        <!-- Zone cachée pour navigation -->
+        <div id="navZone" style="display: none;">
+            <div class="card">
+                <h2 style="color: #4caf50;">✅ Mission Chargée</h2>
+                <p>Segments: <span id="segmentCount">0</span></p>
+                <button onclick="showFirstSegment()" class="success">Afficher Premier Segment</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let debugMessages = [];
+        let segments = [];
+
+        function addDebug(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            debugMessages.push({ timestamp, message, type });
+            
+            const debugZone = document.getElementById('debugZone');
+            const line = document.createElement('div');
+            line.className = `debug-line debug-${type}`;
+            line.textContent = `[${timestamp}] ${message}`;
+            debugZone.appendChild(line);
+            debugZone.scrollTop = debugZone.scrollHeight;
+            
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        // INITIALISATION
+        window.addEventListener('load', () => {
+            addDebug('🚀 PWA démarrée', 'success');
+            
+            // Afficher URL complète
+            const currentUrl = window.location.href;
+            document.getElementById('urlDisplay').textContent = currentUrl;
+            addDebug(`📍 URL: ${currentUrl}`, 'info');
+            
+            // Analyser paramètres URL
+            const urlParams = new URLSearchParams(window.location.search);
+            addDebug(`🔍 Nombre de paramètres URL: ${urlParams.size}`, 'info');
+            
+            if (urlParams.size === 0) {
+                addDebug('❌ Aucun paramètre URL trouvé', 'warning');
+            } else {
+                for (const [key, value] of urlParams) {
+                    addDebug(`  📝 ${key} = ${value.substring(0, 100)}...`, 'info');
+                }
+            }
+            
+            // Vérifier paramètre json
+            const jsonUrl = urlParams.get('json');
+            if (jsonUrl) {
+                addDebug(`✅ Paramètre 'json' détecté`, 'success');
+                addDebug(`🔗 URL JSON: ${jsonUrl.substring(0, 100)}...`, 'info');
+                document.getElementById('testUrlBtn').style.background = '#4caf50';
+                document.getElementById('testUrlBtn').textContent = '🔄 Charger Mission Automatiquement';
+            } else {
+                addDebug('❌ Paramètre "json" manquant dans URL', 'error');
+                document.getElementById('testUrlBtn').textContent = '❌ Pas d\'URL de chargement automatique';
+                document.getElementById('testUrlBtn').disabled = true;
+            }
+        });
+
+        // TEST CHARGEMENT AUTO
+        document.getElementById('testUrlBtn').addEventListener('click', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const jsonUrl = urlParams.get('json');
+            
+            if (!jsonUrl) {
+                addDebug('❌ Aucune URL JSON à tester', 'error');
+                return;
+            }
+            
+            addDebug('🔄 Début test chargement automatique...', 'info');
+            await loadFromUrl(jsonUrl);
+        });
+
+        // CHARGEMENT DEPUIS URL
+        async function loadFromUrl(url) {
+            addDebug(`📡 Tentative fetch: ${url.substring(0, 100)}...`, 'info');
+            
+            try {
+                addDebug('🌐 Envoi requête...', 'info');
+                const response = await fetch(url);
+                
+                addDebug(`📊 Status: ${response.status} ${response.statusText}`, response.ok ? 'success' : 'error');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                addDebug('📄 Parsing JSON...', 'info');
+                const data = await response.json();
+                
+                addDebug('✅ JSON parsé avec succès', 'success');
+                
+                if (data.segments && Array.isArray(data.segments)) {
+                    addDebug(`📦 ${data.segments.length} segments trouvés`, 'success');
+                    segments = data.segments;
+                    showSuccess();
+                } else {
+                    addDebug('❌ Aucun segment trouvé dans le JSON', 'error');
+                    addDebug(`🔍 Structure JSON: ${Object.keys(data).join(', ')}`, 'info');
+                }
+                
+            } catch (error) {
+                addDebug(`❌ Erreur: ${error.message}`, 'error');
+                addDebug(`🔍 Type erreur: ${error.name}`, 'error');
+                
+                if (error.message.includes('CORS')) {
+                    addDebug('🌐 Problème CORS détecté', 'warning');
+                } else if (error.message.includes('Failed to fetch')) {
+                    addDebug('🌐 Problème réseau ou CORS', 'warning');
+                }
+            }
+        }
+
+        // CHARGEMENT FICHIER MANUEL
+        document.getElementById('fileInput').addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            addDebug(`📁 Fichier sélectionné: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`, 'info');
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    addDebug('✅ Fichier JSON valide', 'success');
+                    
+                    if (data.segments && Array.isArray(data.segments)) {
+                        addDebug(`📦 ${data.segments.length} segments trouvés`, 'success');
+                        segments = data.segments;
+                        showSuccess();
+                    } else {
+                        addDebug('❌ Format JSON invalide: pas de segments', 'error');
+                    }
+                } catch (error) {
+                    addDebug(`❌ Erreur parsing fichier: ${error.message}`, 'error');
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        // TEST CORS
+        async function testCORS() {
+            addDebug('🧪 Test du proxy CORS...', 'info');
+            
+            const testUrls = [
+                'https://corsproxy.io/?https://www.google.com',
+                'https://api.allorigins.win/raw?url=https://www.google.com',
+                'https://thingproxy.freeboard.io/fetch/https://www.google.com'
+            ];
+            
+            for (const url of testUrls) {
+                try {
+                    addDebug(`🔄 Test: ${url.split('/')[2]}`, 'info');
+                    const response = await fetch(url);
+                    addDebug(`✅ ${url.split('/')[2]}: ${response.status}`, response.ok ? 'success' : 'warning');
+                } catch (error) {
+                    addDebug(`❌ ${url.split('/')[2]}: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        // AFFICHER SUCCÈS
+        function showSuccess() {
+            document.getElementById('segmentCount').textContent = segments.length;
+            document.getElementById('navZone').style.display = 'block';
+            addDebug('🎉 Mission prête pour navigation!', 'success');
+        }
+
+        // AFFICHER PREMIER SEGMENT
+        function showFirstSegment() {
+            if (segments.length > 0) {
+                const segment = segments[0];
+                addDebug(`📍 Segment 1: ${segment.point_range_start}-${segment.point_range_end}`, 'success');
+                
+                if (segment.google_maps_url || segment.google_maps_url_short) {
+                    const mapsUrl = segment.google_maps_url_short || segment.google_maps_url;
+                    addDebug(`🗺️ URL Google Maps: ${mapsUrl.substring(0, 100)}...`, 'info');
+                    
+                    if (confirm('Ouvrir Google Maps pour le segment 1 ?')) {
+                        window.open(mapsUrl, '_blank');
+                    }
+                } else {
+                    addDebug('❌ Pas d\'URL Google Maps pour ce segment', 'error');
+                }
+            }
+        }
+    </script>
+</body>
+</html>
