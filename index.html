@@ -1,0 +1,1809 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#1B2A6E">
+  <title>MoSITouch - Navigation Mission</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #0C1024 0%, #111D42 100%);
+      min-height: 100vh;
+      color: #fff;
+      padding-bottom: 100px;
+    }
+    
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, #1B2A6E, #12204A);
+      padding: 20px;
+      text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    
+    .header h1 {
+      font-size: 1.4em;
+      margin-bottom: 5px;
+    }
+    
+    .header .subtitle {
+      font-size: 0.85em;
+      opacity: 0.9;
+    }
+    
+    /* GPS Status Bar */
+    .gps-status {
+      background: #12204A;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.85em;
+    }
+    
+    .gps-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .gps-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #f44336;
+      animation: pulse 2s infinite;
+    }
+    
+    .gps-dot.active {
+      background: #E8A830;
+    }
+    
+    .gps-dot.searching {
+      background: #FFC107;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.2); opacity: 0.7; }
+    }
+    
+    /* Progress Bar */
+    .progress-container {
+      background: rgba(255,255,255,0.1);
+      padding: 15px 20px;
+    }
+    
+    .progress-bar {
+      height: 8px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #E8A830, #F0C050);
+      border-radius: 4px;
+      transition: width 0.5s ease;
+    }
+    
+    .progress-text {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 8px;
+      font-size: 0.8em;
+      opacity: 0.8;
+    }
+    
+    /* Current Segment Card */
+    .current-segment {
+      margin: 20px;
+      background: linear-gradient(135deg, #E8A830, #C48820);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 8px 30px rgba(232, 168, 48, 0.4);
+    }
+    
+    .current-segment.arriving {
+      background: linear-gradient(135deg, #D84315, #BF360C);
+      animation: pulseCard 1s infinite;
+    }
+    
+    @keyframes pulseCard {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+    }
+    
+    .current-segment h2 {
+      font-size: 1.1em;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .current-segment .info {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 15px 0;
+    }
+    
+    .info-item {
+      background: rgba(255,255,255,0.15);
+      padding: 10px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    
+    .info-item .value {
+      font-size: 1.4em;
+      font-weight: bold;
+    }
+    
+    .info-item .label {
+      font-size: 0.75em;
+      opacity: 0.8;
+    }
+    
+    .nav-button {
+      width: 100%;
+      padding: 16px;
+      background: rgba(255,255,255,0.95);
+      color: #1B2A6E;
+      border: none;
+      border-radius: 12px;
+      font-size: 1.1em;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: transform 0.2s;
+    }
+    
+    .nav-button:active {
+      transform: scale(0.98);
+    }
+    
+    /* Auto-switch countdown */
+    .auto-switch {
+      background: rgba(0,0,0,0.3);
+      border-radius: 12px;
+      padding: 15px;
+      margin-top: 15px;
+      text-align: center;
+    }
+    
+    .countdown {
+      font-size: 2em;
+      font-weight: bold;
+      margin: 10px 0;
+    }
+    
+    .auto-switch-buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    
+    .auto-switch-buttons button {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    
+    .btn-skip {
+      background: #fff;
+      color: #333;
+    }
+    
+    .btn-cancel {
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+    }
+    
+    /* Segments List */
+    .segments-list {
+      padding: 20px;
+    }
+    
+    .segments-list h3 {
+      margin-bottom: 15px;
+      font-size: 1em;
+      opacity: 0.8;
+    }
+    
+    .segment-item {
+      background: rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+    
+    .segment-item:active {
+      transform: scale(0.98);
+    }
+    
+    .segment-item.completed {
+      background: rgba(232, 168, 48, 0.2);
+      border: 1px solid rgba(232, 168, 48, 0.5);
+    }
+    
+    .segment-item.current {
+      background: rgba(27, 42, 110, 0.3);
+      border: 2px solid #1B2A6E;
+    }
+    
+    .segment-item.upcoming {
+      opacity: 0.6;
+    }
+    
+    .segment-number {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+    
+    .segment-item.completed .segment-number {
+      background: #E8A830;
+    }
+    
+    .segment-item.current .segment-number {
+      background: #1B2A6E;
+    }
+    
+    .segment-details {
+      flex: 1;
+    }
+    
+    .segment-details .name {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    
+    .segment-details .meta {
+      font-size: 0.8em;
+      opacity: 0.7;
+    }
+    
+    .segment-status {
+      font-size: 1.5em;
+    }
+    
+    /* Settings Panel */
+    .settings-toggle {
+      position: fixed;
+      bottom: 80px;
+      right: 20px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: #1B2A6E;
+      border: 2px solid #E8A830;
+      color: #fff;
+      font-size: 1.5em;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(27, 42, 110, 0.4);
+      z-index: 90;
+    }
+    
+    .settings-panel {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #0C1024;
+      border-radius: 20px 20px 0 0;
+      padding: 20px;
+      transform: translateY(100%);
+      transition: transform 0.3s ease;
+      z-index: 95;
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+    
+    .settings-panel.open {
+      transform: translateY(0);
+    }
+    
+    .settings-panel h3 {
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .setting-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 15px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .setting-item label {
+      flex: 1;
+    }
+    
+    .setting-item .description {
+      font-size: 0.8em;
+      opacity: 0.6;
+      margin-top: 4px;
+    }
+    
+    .toggle-switch {
+      width: 50px;
+      height: 28px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 14px;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    
+    .toggle-switch.active {
+      background: #E8A830;
+    }
+    
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      background: #fff;
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      transition: transform 0.3s;
+    }
+    
+    .toggle-switch.active::after {
+      transform: translateX(22px);
+    }
+    
+    .range-input {
+      width: 100px;
+      accent-color: #E8A830;
+    }
+    
+    /* Loading Screen */
+    .loading-screen {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(135deg, #0C1024 0%, #111D42 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+    
+    .loading-screen.hidden {
+      display: none;
+    }
+    
+    .loader {
+      width: 60px;
+      height: 60px;
+      border: 4px solid rgba(255,255,255,0.2);
+      border-top-color: #E8A830;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .loading-screen p {
+      margin-top: 20px;
+      opacity: 0.8;
+    }
+    
+    /* Notification Toast */
+    .toast {
+      position: fixed;
+      bottom: 100px;
+      left: 20px;
+      right: 20px;
+      background: #323232;
+      color: #fff;
+      padding: 16px 20px;
+      border-radius: 12px;
+      transform: translateY(150%);
+      transition: transform 0.3s ease;
+      z-index: 150;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .toast.show {
+      transform: translateY(0);
+    }
+    
+    .toast.success {
+      background: #E8A830;
+    }
+    
+    .toast.warning {
+      background: #E65100;
+    }
+    
+    .toast.error {
+      background: #f44336;
+    }
+    
+    /* No Mission Screen */
+    .no-mission {
+      padding: 40px 20px;
+      text-align: center;
+    }
+    
+    .no-mission .icon {
+      font-size: 4em;
+      margin-bottom: 20px;
+    }
+    
+    .no-mission h2 {
+      margin-bottom: 10px;
+    }
+    
+    .no-mission p {
+      opacity: 0.7;
+      margin-bottom: 30px;
+    }
+    
+    .file-input-label {
+      display: inline-block;
+      padding: 16px 32px;
+      background: #1B2A6E;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    
+    #fileInput {
+      display: none;
+    }
+    
+    /* Debug Panel */
+    .debug-panel {
+      background: rgba(0,0,0,0.5);
+      margin: 20px;
+      padding: 15px;
+      border-radius: 12px;
+      font-family: monospace;
+      font-size: 0.75em;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    
+    .debug-panel.hidden {
+      display: none;
+    }
+    
+    .debug-line {
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .debug-line.error {
+      color: #f44336;
+    }
+    
+    .debug-line.success {
+      color: #E8A830;
+    }
+    
+    .debug-line.warning {
+      color: #FFC107;
+    }
+    
+    /* Embedded Map */
+    .nav-button.map-btn {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      border: 2px solid rgba(255,255,255,0.4);
+      margin-top: 10px;
+    }
+    
+    .nav-button.map-btn:active {
+      background: rgba(255,255,255,0.25);
+    }
+    
+    .map-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 300;
+      background: #0C1024;
+      display: none;
+      flex-direction: column;
+    }
+    
+    .map-overlay.visible {
+      display: flex;
+    }
+    
+    .map-header {
+      background: linear-gradient(135deg, #1B2A6E, #12204A);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 310;
+      flex-shrink: 0;
+    }
+    
+    .map-header h2 {
+      font-size: 1.1em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .map-close-btn {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: #fff;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      font-size: 1.3em;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .map-close-btn:active {
+      background: rgba(255,255,255,0.35);
+    }
+    
+    #embeddedMap {
+      flex: 1;
+      z-index: 305;
+    }
+    
+    .map-info-bar {
+      background: rgba(0,0,0,0.85);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      font-size: 0.85em;
+      flex-shrink: 0;
+      z-index: 310;
+    }
+    
+    .map-info-item {
+      text-align: center;
+    }
+    
+    .map-info-item .val {
+      font-size: 1.3em;
+      font-weight: bold;
+      color: #E8A830;
+    }
+    
+    .map-info-item .lbl {
+      font-size: 0.75em;
+      opacity: 0.7;
+      margin-top: 2px;
+    }
+    
+    .map-recenter-btn {
+      position: absolute;
+      bottom: 80px;
+      right: 16px;
+      z-index: 310;
+      background: #fff;
+      color: #333;
+      border: none;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      font-size: 1.4em;
+      cursor: pointer;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+    
+    .map-legend {
+      position: absolute;
+      top: 70px;
+      left: 10px;
+      z-index: 310;
+      background: rgba(0,0,0,0.75);
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 0.78em;
+    }
+    
+    .map-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 5px;
+    }
+    
+    .map-legend-item:last-child {
+      margin-bottom: 0;
+    }
+    
+    .legend-line {
+      width: 24px;
+      height: 4px;
+      border-radius: 2px;
+    }
+    
+    .legend-line.current {
+      background: #1B2A6E;
+    }
+    
+    .legend-line.next {
+      background: #ff9800;
+    }
+    
+    .legend-line.completed {
+      background: #E8A830;
+    }
+    
+    .legend-line.upcoming {
+      background: #2196F3;
+    }
+  </style>
+</head>
+<body>
+  <!-- Loading Screen -->
+  <div class="loading-screen" id="loadingScreen">
+    <div class="loader"></div>
+    <p id="loadingText">Chargement de la mission...</p>
+  </div>
+  
+  <!-- Toast Notification -->
+  <div class="toast" id="toast">
+    <span class="toast-icon">ℹ️</span>
+    <span class="toast-message"></span>
+  </div>
+  
+  <!-- Main App -->
+  <div id="app">
+    <!-- Header -->
+    <div class="header">
+      <h1>🦟 MoSITouch</h1>
+      <div class="subtitle" id="missionName">Navigation Mission</div>
+    </div>
+    
+    <!-- GPS Status -->
+    <div class="gps-status">
+      <div class="gps-indicator">
+        <div class="gps-dot" id="gpsDot"></div>
+        <span id="gpsStatus">GPS inactif</span>
+      </div>
+      <div id="gpsCoords">--</div>
+    </div>
+    
+    <!-- Progress -->
+    <div class="progress-container" id="progressContainer" style="display: none;">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+      </div>
+      <div class="progress-text">
+        <span id="progressText">0 / 0 segments</span>
+        <span id="progressPercent">0%</span>
+      </div>
+    </div>
+    
+    <!-- Current Segment -->
+    <div class="current-segment" id="currentSegment" style="display: none;">
+      <h2>
+        <span>📍 Segment actuel</span>
+        <span id="currentSegmentNumber">#1</span>
+      </h2>
+      <div class="info">
+        <div class="info-item">
+          <div class="value" id="currentPoints">0</div>
+          <div class="label">Points</div>
+        </div>
+        <div class="info-item">
+          <div class="value" id="distanceToEnd">--</div>
+          <div class="label">Distance fin</div>
+        </div>
+      </div>
+      <button class="nav-button" id="btnNavigate">
+        🚀 Ouvrir dans Google Maps
+      </button>
+      <button class="nav-button map-btn" id="btnEmbeddedMap">
+        🗺️ Ouvrir dans la carte intégrée
+      </button>
+      
+      <!-- Auto-switch countdown (hidden by default) -->
+      <div class="auto-switch" id="autoSwitch" style="display: none;">
+        <div>🎯 Destination atteinte !</div>
+        <div class="countdown" id="countdown">5</div>
+        <div>Passage au segment suivant...</div>
+        <div class="auto-switch-buttons">
+          <button class="btn-skip" id="btnSkipNow">▶️ Maintenant</button>
+          <button class="btn-cancel" id="btnCancelSwitch">✖️ Annuler</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- No Mission Screen -->
+    <div class="no-mission" id="noMission">
+      <div class="icon">📂</div>
+      <h2>Aucune mission</h2>
+      <p>Chargez un fichier JSON de mission ou utilisez un lien magique</p>
+      <label class="file-input-label">
+        📁 Charger un fichier JSON
+        <input type="file" id="fileInput" accept=".json,application/json">
+      </label>
+    </div>
+    
+    <!-- Segments List -->
+    <div class="segments-list" id="segmentsList" style="display: none;">
+      <h3>📋 Tous les segments</h3>
+      <div id="segmentsContainer"></div>
+    </div>
+    
+    <!-- Debug Panel -->
+    <div class="debug-panel hidden" id="debugPanel">
+      <div id="debugLog"></div>
+    </div>
+  </div>
+  
+  <!-- Embedded Map Overlay -->
+  <div class="map-overlay" id="mapOverlay">
+    <div class="map-header">
+      <h2>🗺️ Trajet complet</h2>
+      <button class="map-close-btn" id="btnCloseMap">✕</button>
+    </div>
+    <div style="position:relative;flex:1;display:flex;flex-direction:column;">
+      <div id="embeddedMap"></div>
+      <div class="map-legend" id="mapLegend">
+        <div class="map-legend-item"><div class="legend-line completed"></div> Complété</div>
+        <div class="map-legend-item"><div class="legend-line current"></div> En cours</div>
+        <div class="map-legend-item"><div class="legend-line next"></div> Suivant</div>
+        <div class="map-legend-item"><div class="legend-line upcoming"></div> À venir</div>
+      </div>
+      <button class="map-recenter-btn" id="btnRecenter">📍</button>
+    </div>
+    <div class="map-info-bar" id="mapInfoBar">
+      <div class="map-info-item">
+        <div class="val" id="mapTotalPoints">0</div>
+        <div class="lbl">Points total</div>
+      </div>
+      <div class="map-info-item">
+        <div class="val" id="mapSegmentInfo">0/0</div>
+        <div class="lbl">Segment</div>
+      </div>
+      <div class="map-info-item">
+        <div class="val" id="mapDistance">--</div>
+        <div class="lbl">Distance</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Toggle -->
+  <button class="settings-toggle" id="settingsToggle">⚙️</button>
+  
+  <!-- Settings Panel -->
+  <div class="settings-panel" id="settingsPanel">
+    <h3>
+      <span>⚙️ Paramètres</span>
+      <button onclick="toggleSettings()" style="background:none;border:none;color:#fff;font-size:1.5em;cursor:pointer;">✕</button>
+    </h3>
+    
+    <div class="setting-item">
+      <label>
+        <div>🛰️ Tracking GPS</div>
+        <div class="description">Suivre la position en temps réel</div>
+      </label>
+      <div class="toggle-switch active" id="toggleGps" onclick="toggleSetting('gpsEnabled')"></div>
+    </div>
+    
+    <div class="setting-item">
+      <label>
+        <div>🔄 Switch automatique</div>
+        <div class="description">Passer au segment suivant automatiquement</div>
+      </label>
+      <div class="toggle-switch active" id="toggleAutoSwitch" onclick="toggleSetting('autoSwitch')"></div>
+    </div>
+    
+    <div class="setting-item">
+      <label>
+        <div>🔔 Notifications sonores</div>
+        <div class="description">Alerter à l'arrivée</div>
+      </label>
+      <div class="toggle-switch active" id="toggleSound" onclick="toggleSetting('soundEnabled')"></div>
+    </div>
+    
+    <div class="setting-item">
+      <label>
+        <div>📳 Vibration</div>
+        <div class="description">Vibrer à l'arrivée</div>
+      </label>
+      <div class="toggle-switch active" id="toggleVibration" onclick="toggleSetting('vibrationEnabled')"></div>
+    </div>
+    
+    <div class="setting-item">
+      <label>
+        <div>🎯 Rayon de détection</div>
+        <div class="description">Distance pour considérer l'arrivée (m)</div>
+      </label>
+      <input type="range" class="range-input" id="detectionRadius" min="20" max="200" value="50" onchange="updateRadius()">
+      <span id="radiusValue">50m</span>
+    </div>
+    
+    <div class="setting-item">
+      <label>
+        <div>⏱️ Délai avant switch</div>
+        <div class="description">Secondes avant passage auto</div>
+      </label>
+      <input type="range" class="range-input" id="switchDelay" min="3" max="15" value="5" onchange="updateDelay()">
+      <span id="delayValue">5s</span>
+    </div>
+    
+    <div class="setting-item">
+      <label>
+        <div>🐛 Mode debug</div>
+        <div class="description">Afficher les logs</div>
+      </label>
+      <div class="toggle-switch" id="toggleDebug" onclick="toggleSetting('debugMode')"></div>
+    </div>
+    
+    <div class="setting-item" style="border: none;">
+      <button onclick="resetMission()" style="width:100%;padding:15px;background:#f44336;color:#fff;border:none;border-radius:8px;font-weight:bold;cursor:pointer;">
+        🔄 Réinitialiser la mission
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // ========================================
+    // CONFIGURATION & STATE
+    // ========================================
+    
+    const CONFIG = {
+      gpsEnabled: true,
+      autoSwitch: true,
+      soundEnabled: true,
+      vibrationEnabled: true,
+      detectionRadius: 50, // mètres
+      switchDelay: 5, // secondes
+      debugMode: false,
+      gpsUpdateInterval: 5000 // ms
+    };
+    
+    let STATE = {
+      mission: null,
+      segments: [],
+      currentSegmentIndex: 0,
+      completedSegments: [],
+      userPosition: null,
+      gpsWatchId: null,
+      countdownInterval: null,
+      isArriving: false
+    };
+    
+    // ========================================
+    // DEBUG LOGGING
+    // ========================================
+    
+    function log(message, type = 'info') {
+      const time = new Date().toLocaleTimeString();
+      const prefix = {
+        'info': 'ℹ️',
+        'success': '✅',
+        'warning': '⚠️',
+        'error': '❌'
+      }[type] || 'ℹ️';
+      
+      console.log(`[${time}] ${prefix} ${message}`);
+      
+      if (CONFIG.debugMode) {
+        const debugLog = document.getElementById('debugLog');
+        const line = document.createElement('div');
+        line.className = `debug-line ${type}`;
+        line.textContent = `[${time}] ${prefix} ${message}`;
+        debugLog.insertBefore(line, debugLog.firstChild);
+      }
+    }
+    
+    // ========================================
+    // TOAST NOTIFICATIONS
+    // ========================================
+    
+    function showToast(message, type = 'info', duration = 3000) {
+      const toast = document.getElementById('toast');
+      const icons = {
+        'info': 'ℹ️',
+        'success': '✅',
+        'warning': '⚠️',
+        'error': '❌'
+      };
+      
+      toast.querySelector('.toast-icon').textContent = icons[type] || 'ℹ️';
+      toast.querySelector('.toast-message').textContent = message;
+      toast.className = `toast ${type} show`;
+      
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, duration);
+    }
+    
+    // ========================================
+    // GPS FUNCTIONS
+    // ========================================
+    
+    function startGpsTracking() {
+      if (!navigator.geolocation) {
+        log('Géolocalisation non supportée', 'error');
+        showToast('GPS non supporté sur cet appareil', 'error');
+        return;
+      }
+      
+      log('Démarrage du tracking GPS...', 'info');
+      updateGpsStatus('searching', 'Recherche GPS...');
+      
+      STATE.gpsWatchId = navigator.geolocation.watchPosition(
+        onGpsSuccess,
+        onGpsError,
+        {
+          enableHighAccuracy: true,
+          maximumAge: 5000,
+          timeout: 10000
+        }
+      );
+    }
+    
+    function stopGpsTracking() {
+      if (STATE.gpsWatchId !== null) {
+        navigator.geolocation.clearWatch(STATE.gpsWatchId);
+        STATE.gpsWatchId = null;
+        log('Tracking GPS arrêté', 'info');
+        updateGpsStatus('inactive', 'GPS inactif');
+      }
+    }
+    
+    function onGpsSuccess(position) {
+      STATE.userPosition = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+        accuracy: position.coords.accuracy
+      };
+      
+      updateGpsStatus('active', `Précision: ${Math.round(position.coords.accuracy)}m`);
+      document.getElementById('gpsCoords').textContent = 
+        `${STATE.userPosition.lat.toFixed(5)}, ${STATE.userPosition.lng.toFixed(5)}`;
+      
+      log(`Position: ${STATE.userPosition.lat.toFixed(5)}, ${STATE.userPosition.lng.toFixed(5)} (±${Math.round(position.coords.accuracy)}m)`, 'success');
+      
+      // Mettre à jour la carte intégrée si ouverte
+      if (MAP.isOpen) {
+        updateMapUserPosition(STATE.userPosition.lat, STATE.userPosition.lng);
+      }
+      
+      // Vérifier la distance à la destination
+      checkArrival();
+    }
+    
+    function onGpsError(error) {
+      const messages = {
+        1: 'Permission GPS refusée',
+        2: 'Position indisponible',
+        3: 'Timeout GPS'
+      };
+      log(messages[error.code] || 'Erreur GPS', 'error');
+      updateGpsStatus('error', messages[error.code] || 'Erreur GPS');
+    }
+    
+    function updateGpsStatus(status, text) {
+      const dot = document.getElementById('gpsDot');
+      const statusText = document.getElementById('gpsStatus');
+      
+      dot.className = 'gps-dot';
+      if (status === 'active') dot.classList.add('active');
+      if (status === 'searching') dot.classList.add('searching');
+      
+      statusText.textContent = text;
+    }
+    
+    // ========================================
+    // DISTANCE CALCULATION
+    // ========================================
+    
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371000; // Rayon de la Terre en mètres
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    }
+    
+    function formatDistance(meters) {
+      if (meters < 1000) {
+        return `${Math.round(meters)}m`;
+      }
+      return `${(meters / 1000).toFixed(1)}km`;
+    }
+    
+    // ========================================
+    // ARRIVAL DETECTION
+    // ========================================
+    
+    function checkArrival() {
+      if (!STATE.userPosition || !STATE.segments.length) return;
+      
+      const currentSegment = STATE.segments[STATE.currentSegmentIndex];
+      if (!currentSegment) return;
+      
+      // Récupérer les coordonnées de destination
+      const destCoords = currentSegment.destination.split(',');
+      const destLat = parseFloat(destCoords[0]);
+      const destLng = parseFloat(destCoords[1]);
+      
+      const distance = calculateDistance(
+        STATE.userPosition.lat,
+        STATE.userPosition.lng,
+        destLat,
+        destLng
+      );
+      
+      // Mettre à jour l'affichage
+      document.getElementById('distanceToEnd').textContent = formatDistance(distance);
+      
+      log(`Distance à destination: ${formatDistance(distance)}`, 'info');
+      
+      // Vérifier si on est arrivé
+      if (distance <= CONFIG.detectionRadius && !STATE.isArriving) {
+        onArrival();
+      }
+    }
+    
+    function onArrival() {
+      STATE.isArriving = true;
+      log('🎯 DESTINATION ATTEINTE !', 'success');
+      
+      // Notification visuelle
+      document.getElementById('currentSegment').classList.add('arriving');
+      showToast('🎯 Destination atteinte !', 'success');
+      
+      // Son
+      if (CONFIG.soundEnabled) {
+        playSound();
+      }
+      
+      // Vibration
+      if (CONFIG.vibrationEnabled && navigator.vibrate) {
+        navigator.vibrate([200, 100, 200, 100, 200]);
+      }
+      
+      // Auto-switch
+      if (CONFIG.autoSwitch && STATE.currentSegmentIndex < STATE.segments.length - 1) {
+        startAutoSwitchCountdown();
+      } else if (STATE.currentSegmentIndex >= STATE.segments.length - 1) {
+        showToast('🎉 Mission terminée !', 'success', 5000);
+        markCurrentAsCompleted();
+      }
+    }
+    
+    function playSound() {
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = 880;
+        oscillator.type = 'sine';
+        gainNode.gain.value = 0.3;
+        
+        oscillator.start();
+        setTimeout(() => {
+          oscillator.frequency.value = 1100;
+          setTimeout(() => {
+            oscillator.stop();
+          }, 150);
+        }, 150);
+      } catch (e) {
+        log('Impossible de jouer le son', 'warning');
+      }
+    }
+    
+    // ========================================
+    // AUTO-SWITCH COUNTDOWN
+    // ========================================
+    
+    function startAutoSwitchCountdown() {
+      const autoSwitchDiv = document.getElementById('autoSwitch');
+      const countdownSpan = document.getElementById('countdown');
+      
+      autoSwitchDiv.style.display = 'block';
+      
+      let seconds = CONFIG.switchDelay;
+      countdownSpan.textContent = seconds;
+      
+      STATE.countdownInterval = setInterval(() => {
+        seconds--;
+        countdownSpan.textContent = seconds;
+        
+        if (seconds <= 0) {
+          clearInterval(STATE.countdownInterval);
+          goToNextSegment();
+        }
+      }, 1000);
+    }
+    
+    function cancelAutoSwitch() {
+      if (STATE.countdownInterval) {
+        clearInterval(STATE.countdownInterval);
+        STATE.countdownInterval = null;
+      }
+      document.getElementById('autoSwitch').style.display = 'none';
+      markCurrentAsCompleted();
+      STATE.isArriving = false;
+      document.getElementById('currentSegment').classList.remove('arriving');
+    }
+    
+    function skipToNextNow() {
+      if (STATE.countdownInterval) {
+        clearInterval(STATE.countdownInterval);
+      }
+      goToNextSegment();
+    }
+    
+    // ========================================
+    // SEGMENT NAVIGATION
+    // ========================================
+    
+    function markCurrentAsCompleted() {
+      if (!STATE.completedSegments.includes(STATE.currentSegmentIndex)) {
+        STATE.completedSegments.push(STATE.currentSegmentIndex);
+        updateProgress();
+        renderSegmentsList();
+        saveState();
+      }
+    }
+    
+    function goToNextSegment() {
+      markCurrentAsCompleted();
+      
+      if (STATE.currentSegmentIndex < STATE.segments.length - 1) {
+        STATE.currentSegmentIndex++;
+        STATE.isArriving = false;
+        
+        document.getElementById('autoSwitch').style.display = 'none';
+        document.getElementById('currentSegment').classList.remove('arriving');
+        
+        updateCurrentSegmentDisplay();
+        renderSegmentsList();
+        saveState();
+        
+        log(`Passage au segment ${STATE.currentSegmentIndex + 1}`, 'success');
+        showToast(`Segment ${STATE.currentSegmentIndex + 1} / ${STATE.segments.length}`, 'info');
+        
+        // Rafraîchir la carte si ouverte
+        if (MAP.isOpen) {
+          drawFullRoute();
+          updateMapInfo();
+        }
+        
+        // Ouvrir automatiquement Google Maps
+        openGoogleMaps();
+      } else {
+        showToast('🎉 Mission terminée !', 'success', 5000);
+      }
+    }
+    
+    function goToSegment(index) {
+      STATE.currentSegmentIndex = index;
+      STATE.isArriving = false;
+      
+      document.getElementById('autoSwitch').style.display = 'none';
+      document.getElementById('currentSegment').classList.remove('arriving');
+      
+      updateCurrentSegmentDisplay();
+      renderSegmentsList();
+      saveState();
+      
+      log(`Sélection segment ${index + 1}`, 'info');
+      
+      // Rafraîchir la carte si ouverte
+      if (MAP.isOpen) {
+        drawFullRoute();
+        updateMapInfo();
+      }
+    }
+    
+    function openGoogleMaps() {
+      const segment = STATE.segments[STATE.currentSegmentIndex];
+      if (segment && segment.google_maps_url) {
+        log(`Ouverture Google Maps: Segment ${STATE.currentSegmentIndex + 1}`, 'info');
+        window.open(segment.google_maps_url, '_blank');
+      }
+    }
+    
+    // ========================================
+    // UI UPDATES
+    // ========================================
+    
+    function updateCurrentSegmentDisplay() {
+      const segment = STATE.segments[STATE.currentSegmentIndex];
+      if (!segment) return;
+      
+      document.getElementById('currentSegmentNumber').textContent = `#${STATE.currentSegmentIndex + 1}`;
+      document.getElementById('currentPoints').textContent = segment.points_count || segment.points?.length || '?';
+      document.getElementById('distanceToEnd').textContent = '--';
+    }
+    
+    function updateProgress() {
+      const total = STATE.segments.length;
+      const completed = STATE.completedSegments.length;
+      const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+      
+      document.getElementById('progressFill').style.width = `${percent}%`;
+      document.getElementById('progressText').textContent = `${completed} / ${total} segments`;
+      document.getElementById('progressPercent').textContent = `${percent}%`;
+    }
+    
+    function renderSegmentsList() {
+      const container = document.getElementById('segmentsContainer');
+      container.innerHTML = '';
+      
+      STATE.segments.forEach((segment, index) => {
+        const isCompleted = STATE.completedSegments.includes(index);
+        const isCurrent = index === STATE.currentSegmentIndex;
+        const isUpcoming = index > STATE.currentSegmentIndex && !isCompleted;
+        
+        const div = document.createElement('div');
+        div.className = `segment-item ${isCompleted ? 'completed' : ''} ${isCurrent ? 'current' : ''} ${isUpcoming ? 'upcoming' : ''}`;
+        div.onclick = () => goToSegment(index);
+        
+        div.innerHTML = `
+          <div class="segment-number">${isCompleted ? '✓' : index + 1}</div>
+          <div class="segment-details">
+            <div class="name">${segment.name || `Segment ${index + 1}`}</div>
+            <div class="meta">${segment.points_count || segment.points?.length || '?'} points</div>
+          </div>
+          <div class="segment-status">${isCompleted ? '✅' : isCurrent ? '📍' : '○'}</div>
+        `;
+        
+        container.appendChild(div);
+      });
+    }
+    
+    // ========================================
+    // MISSION LOADING
+    // ========================================
+    
+    function loadMission(data) {
+      try {
+        log('Chargement de la mission...', 'info');
+        
+        STATE.mission = data.mission || { name: 'Mission' };
+        STATE.segments = data.segments || [];
+        
+        if (STATE.segments.length === 0) {
+          throw new Error('Aucun segment dans la mission');
+        }
+        
+        // Restaurer l'état sauvegardé si disponible
+        const savedState = loadSavedState();
+        if (savedState && savedState.missionName === STATE.mission.name) {
+          STATE.currentSegmentIndex = savedState.currentSegmentIndex || 0;
+          STATE.completedSegments = savedState.completedSegments || [];
+          log('État précédent restauré', 'success');
+        }
+        
+        // Mettre à jour l'interface
+        document.getElementById('missionName').textContent = STATE.mission.name || 'Mission chargée';
+        document.getElementById('noMission').style.display = 'none';
+        document.getElementById('currentSegment').style.display = 'block';
+        document.getElementById('segmentsList').style.display = 'block';
+        document.getElementById('progressContainer').style.display = 'block';
+        
+        updateCurrentSegmentDisplay();
+        updateProgress();
+        renderSegmentsList();
+        
+        // Démarrer le GPS si activé
+        if (CONFIG.gpsEnabled) {
+          startGpsTracking();
+        }
+        
+        log(`Mission chargée: ${STATE.segments.length} segments`, 'success');
+        showToast(`${STATE.segments.length} segments chargés`, 'success');
+        
+      } catch (error) {
+        log(`Erreur chargement: ${error.message}`, 'error');
+        showToast('Erreur de chargement', 'error');
+      }
+    }
+    
+    // ========================================
+    // STATE PERSISTENCE
+    // ========================================
+    
+    function saveState() {
+      try {
+        const state = {
+          missionName: STATE.mission?.name,
+          currentSegmentIndex: STATE.currentSegmentIndex,
+          completedSegments: STATE.completedSegments
+        };
+        localStorage.setItem('missionState', JSON.stringify(state));
+      } catch (e) {
+        log('Impossible de sauvegarder l\'état', 'warning');
+      }
+    }
+    
+    function loadSavedState() {
+      try {
+        const saved = localStorage.getItem('missionState');
+        return saved ? JSON.parse(saved) : null;
+      } catch (e) {
+        return null;
+      }
+    }
+    
+    function resetMission() {
+      if (confirm('Réinitialiser la mission ? La progression sera perdue.')) {
+        STATE.currentSegmentIndex = 0;
+        STATE.completedSegments = [];
+        STATE.isArriving = false;
+        
+        localStorage.removeItem('missionState');
+        
+        updateCurrentSegmentDisplay();
+        updateProgress();
+        renderSegmentsList();
+        
+        document.getElementById('currentSegment').classList.remove('arriving');
+        document.getElementById('autoSwitch').style.display = 'none';
+        
+        showToast('Mission réinitialisée', 'success');
+        toggleSettings();
+      }
+    }
+    
+    // ========================================
+    // SETTINGS
+    // ========================================
+    
+    function toggleSettings() {
+      document.getElementById('settingsPanel').classList.toggle('open');
+    }
+    
+    function toggleSetting(setting) {
+      CONFIG[setting] = !CONFIG[setting];
+      
+      const toggleId = {
+        'gpsEnabled': 'toggleGps',
+        'autoSwitch': 'toggleAutoSwitch',
+        'soundEnabled': 'toggleSound',
+        'vibrationEnabled': 'toggleVibration',
+        'debugMode': 'toggleDebug'
+      }[setting];
+      
+      if (toggleId) {
+        document.getElementById(toggleId).classList.toggle('active', CONFIG[setting]);
+      }
+      
+      // Actions spéciales
+      if (setting === 'gpsEnabled') {
+        CONFIG.gpsEnabled ? startGpsTracking() : stopGpsTracking();
+      }
+      
+      if (setting === 'debugMode') {
+        document.getElementById('debugPanel').classList.toggle('hidden', !CONFIG.debugMode);
+      }
+      
+      log(`${setting} = ${CONFIG[setting]}`, 'info');
+    }
+    
+    function updateRadius() {
+      const value = document.getElementById('detectionRadius').value;
+      CONFIG.detectionRadius = parseInt(value);
+      document.getElementById('radiusValue').textContent = `${value}m`;
+    }
+    
+    function updateDelay() {
+      const value = document.getElementById('switchDelay').value;
+      CONFIG.switchDelay = parseInt(value);
+      document.getElementById('delayValue').textContent = `${value}s`;
+    }
+    
+    // ========================================
+    // FILE LOADING
+    // ========================================
+    
+    function handleFileSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          loadMission(data);
+        } catch (error) {
+          log(`Erreur parsing JSON: ${error.message}`, 'error');
+          showToast('Fichier JSON invalide', 'error');
+        }
+      };
+      reader.readAsText(file);
+    }
+    
+    // ========================================
+    // URL PARAMETER LOADING
+    // ========================================
+    
+    async function loadFromUrl() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const jsonUrl = urlParams.get('json');
+      
+      if (!jsonUrl) {
+        log('Pas de paramètre ?json= dans l\'URL', 'info');
+        document.getElementById('loadingScreen').classList.add('hidden');
+        return;
+      }
+      
+      log(`Chargement depuis URL: ${jsonUrl}`, 'info');
+      document.getElementById('loadingText').textContent = 'Téléchargement de la mission...';
+      
+      try {
+        const response = await fetch(jsonUrl);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        loadMission(data);
+        
+      } catch (error) {
+        log(`Erreur fetch: ${error.message}`, 'error');
+        showToast('Impossible de charger la mission', 'error');
+      }
+      
+      document.getElementById('loadingScreen').classList.add('hidden');
+    }
+    
+    // ========================================
+    // EMBEDDED MAP (Leaflet + OpenStreetMap)
+    // ========================================
+    
+    let MAP = {
+      instance: null,
+      userMarker: null,
+      routeLines: [],
+      pointMarkers: [],
+      gpsWatchForMap: null,
+      isOpen: false
+    };
+    
+    function openEmbeddedMap() {
+      if (STATE.segments.length === 0) {
+        showToast('Aucune mission chargée', 'warning');
+        return;
+      }
+      
+      const overlay = document.getElementById('mapOverlay');
+      overlay.classList.add('visible');
+      MAP.isOpen = true;
+      
+      // Initialiser la carte si nécessaire (après que le DOM soit visible)
+      setTimeout(() => {
+        if (!MAP.instance) {
+          initMap();
+        } else {
+          MAP.instance.invalidateSize();
+        }
+        drawFullRoute();
+        updateMapInfo();
+        
+        // Tracking GPS sur la carte
+        if (STATE.userPosition) {
+          updateMapUserPosition(STATE.userPosition.lat, STATE.userPosition.lng);
+        }
+      }, 100);
+      
+      log('Carte intégrée ouverte', 'info');
+    }
+    
+    function closeEmbeddedMap() {
+      document.getElementById('mapOverlay').classList.remove('visible');
+      MAP.isOpen = false;
+      log('Carte intégrée fermée', 'info');
+    }
+    
+    function initMap() {
+      // Centre par défaut (premier point de la mission)
+      const firstCoords = getSegmentCoords(STATE.segments[0], 'origin');
+      const center = firstCoords || [-21.115, 55.536]; // La Réunion par défaut
+      
+      MAP.instance = L.map('embeddedMap', {
+        center: center,
+        zoom: 13,
+        zoomControl: true,
+        attributionControl: true
+      });
+      
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap'
+      }).addTo(MAP.instance);
+      
+      log('Carte Leaflet initialisée', 'success');
+    }
+    
+    // Extraire les coordonnées d'un segment (gère les différents formats)
+    function getSegmentCoords(segment, type) {
+      if (!segment) return null;
+      
+      const field = segment[type];
+      if (!field) return null;
+      
+      // Format objet { latitude, longitude }
+      if (typeof field === 'object' && field.latitude !== undefined) {
+        return [parseFloat(field.latitude), parseFloat(field.longitude)];
+      }
+      
+      // Format string "lat,lng"
+      if (typeof field === 'string' && field.includes(',')) {
+        const parts = field.split(',');
+        return [parseFloat(parts[0]), parseFloat(parts[1])];
+      }
+      
+      return null;
+    }
+    
+    // Extraire TOUS les waypoints d'un segment à partir de l'URL Google Maps
+    function getWaypointsFromUrl(url) {
+      if (!url) return [];
+      
+      const points = [];
+      
+      try {
+        // Extraire origin
+        const originMatch = url.match(/origin=([^&]+)/);
+        if (originMatch) {
+          const [lat, lng] = originMatch[1].split(',').map(parseFloat);
+          if (!isNaN(lat) && !isNaN(lng)) points.push([lat, lng]);
+        }
+        
+        // Extraire waypoints
+        const waypointsMatch = url.match(/waypoints=([^&]+)/);
+        if (waypointsMatch) {
+          const waypointStr = decodeURIComponent(waypointsMatch[1]);
+          const wps = waypointStr.split('|');
+          wps.forEach(wp => {
+            const [lat, lng] = wp.split(',').map(parseFloat);
+            if (!isNaN(lat) && !isNaN(lng)) points.push([lat, lng]);
+          });
+        }
+        
+        // Extraire destination
+        const destMatch = url.match(/destination=([^&]+)/);
+        if (destMatch) {
+          const [lat, lng] = destMatch[1].split(',').map(parseFloat);
+          if (!isNaN(lat) && !isNaN(lng)) points.push([lat, lng]);
+        }
+      } catch (e) {
+        log(`Erreur extraction waypoints URL: ${e.message}`, 'warning');
+      }
+      
+      return points;
+    }
+    
+    // Extraire tous les points d'un segment (essaie URL puis origin/destination)
+    function getAllSegmentPoints(segment) {
+      // D'abord essayer d'extraire depuis l'URL Google Maps (plus complet, inclut les waypoints)
+      let points = getWaypointsFromUrl(segment.google_maps_url);
+      
+      if (points.length > 0) return points;
+      
+      // Sinon, utiliser origin/destination
+      points = [];
+      const origin = getSegmentCoords(segment, 'origin');
+      if (origin) points.push(origin);
+      
+      const dest = getSegmentCoords(segment, 'destination');
+      if (dest) points.push(dest);
+      
+      return points;
+    }
+    
+    // Dessiner le trajet complet sur la carte
+    function drawFullRoute() {
+      if (!MAP.instance) return;
+      
+      // Nettoyer les anciennes lignes et marqueurs
+      MAP.routeLines.forEach(line => MAP.instance.removeLayer(line));
+      MAP.pointMarkers.forEach(marker => MAP.instance.removeLayer(marker));
+      MAP.routeLines = [];
+      MAP.pointMarkers = [];
+      
+      const allPoints = [];
+      let totalPointsCount = 0;
+      
+      STATE.segments.forEach((segment, index) => {
+        const points = getAllSegmentPoints(segment);
+        if (points.length === 0) return;
+        
+        totalPointsCount += segment.points_count || points.length;
+        
+        // Déterminer la couleur selon l'état du segment
+        const isCompleted = STATE.completedSegments.includes(index);
+        const isCurrent = index === STATE.currentSegmentIndex;
+        const isNext = index === STATE.currentSegmentIndex + 1;
+        
+        let color, weight, opacity, dashArray;
+        if (isCompleted) {
+          color = '#E8A830'; weight = 4; opacity = 0.6; dashArray = null;
+        } else if (isCurrent) {
+          color = '#1B2A6E'; weight = 6; opacity = 1; dashArray = null;
+        } else if (isNext) {
+          color = '#ff9800'; weight = 5; opacity = 0.85; dashArray = '10, 8';
+        } else {
+          color = '#2196F3'; weight = 3; opacity = 0.7; dashArray = '5, 10';
+        }
+        
+        // Dessiner la polyline du segment
+        const polyline = L.polyline(points, {
+          color: color,
+          weight: weight,
+          opacity: opacity,
+          dashArray: dashArray,
+          lineCap: 'round',
+          lineJoin: 'round'
+        }).addTo(MAP.instance);
+        
+        MAP.routeLines.push(polyline);
+        
+        // Ajouter des marqueurs pour le premier et dernier point du segment
+        if (index === 0 && points.length > 0) {
+          // Marqueur de départ de la mission
+          const startIcon = L.divIcon({
+            html: '<div style="background:#1B2A6E;color:#E8A830;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;border:3px solid #E8A830;box-shadow:0 2px 6px rgba(0,0,0,0.4);">A</div>',
+            className: '',
+            iconSize: [30, 30],
+            iconAnchor: [15, 15]
+          });
+          const startMarker = L.marker(points[0], { icon: startIcon }).addTo(MAP.instance);
+          startMarker.bindPopup('<b>🏁 Départ mission</b>');
+          MAP.pointMarkers.push(startMarker);
+        }
+        
+        if (index === STATE.segments.length - 1 && points.length > 0) {
+          // Marqueur de fin de mission
+          const endIcon = L.divIcon({
+            html: '<div style="background:#f44336;color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.4);">B</div>',
+            className: '',
+            iconSize: [30, 30],
+            iconAnchor: [15, 15]
+          });
+          const endMarker = L.marker(points[points.length - 1], { icon: endIcon }).addTo(MAP.instance);
+          endMarker.bindPopup('<b>🏁 Fin mission</b>');
+          MAP.pointMarkers.push(endMarker);
+        }
+        
+        // Collecter tous les points pour le bounds
+        points.forEach(p => allPoints.push(p));
+      });
+      
+      // Ajuster la vue pour voir tout le trajet
+      if (allPoints.length > 0) {
+        const bounds = L.latLngBounds(allPoints);
+        MAP.instance.fitBounds(bounds, { padding: [40, 40] });
+      }
+      
+      log(`Carte: ${STATE.segments.length} segments, ${totalPointsCount} points`, 'success');
+    }
+    
+    // Mettre à jour la position de l'utilisateur sur la carte
+    function updateMapUserPosition(lat, lng) {
+      if (!MAP.instance || !MAP.isOpen) return;
+      
+      if (MAP.userMarker) {
+        MAP.userMarker.setLatLng([lat, lng]);
+      } else {
+        const userIcon = L.divIcon({
+          html: '<div style="background:#E8A830;width:18px;height:18px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 10px rgba(27,42,110,0.6);"></div>',
+          className: '',
+          iconSize: [18, 18],
+          iconAnchor: [9, 9]
+        });
+        MAP.userMarker = L.marker([lat, lng], { icon: userIcon, zIndexOffset: 1000 }).addTo(MAP.instance);
+        MAP.userMarker.bindPopup('<b>📍 Ma position</b>');
+      }
+    }
+    
+    function recenterMap() {
+      if (MAP.instance && STATE.userPosition) {
+        MAP.instance.setView([STATE.userPosition.lat, STATE.userPosition.lng], 15, { animate: true });
+      } else if (MAP.instance && MAP.routeLines.length > 0) {
+        const bounds = L.latLngBounds([]);
+        MAP.routeLines.forEach(line => bounds.extend(line.getBounds()));
+        MAP.instance.fitBounds(bounds, { padding: [40, 40] });
+      }
+    }
+    
+    function updateMapInfo() {
+      let totalPoints = 0;
+      let totalDistance = 0;
+      
+      STATE.segments.forEach(segment => {
+        totalPoints += segment.points_count || 0;
+        const points = getAllSegmentPoints(segment);
+        for (let i = 1; i < points.length; i++) {
+          totalDistance += calculateDistance(points[i-1][0], points[i-1][1], points[i][0], points[i][1]);
+        }
+      });
+      
+      document.getElementById('mapTotalPoints').textContent = totalPoints;
+      document.getElementById('mapSegmentInfo').textContent = `${STATE.currentSegmentIndex + 1}/${STATE.segments.length}`;
+      document.getElementById('mapDistance').textContent = totalDistance > 0 ? formatDistance(totalDistance) : '--';
+    }
+    
+    // ========================================
+    // INITIALIZATION
+    // ========================================
+    
+    document.addEventListener('DOMContentLoaded', () => {
+      log('PWA Navigation GPS initialisée', 'success');
+      
+      // Event listeners
+      document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+      document.getElementById('btnNavigate').addEventListener('click', openGoogleMaps);
+      document.getElementById('btnEmbeddedMap').addEventListener('click', openEmbeddedMap);
+      document.getElementById('btnCloseMap').addEventListener('click', closeEmbeddedMap);
+      document.getElementById('btnRecenter').addEventListener('click', recenterMap);
+      document.getElementById('settingsToggle').addEventListener('click', toggleSettings);
+      document.getElementById('btnSkipNow').addEventListener('click', skipToNextNow);
+      document.getElementById('btnCancelSwitch').addEventListener('click', cancelAutoSwitch);
+      
+      // Charger depuis URL si paramètre présent
+      loadFromUrl();
+    });
+  </script>
+</body>
+</html>
