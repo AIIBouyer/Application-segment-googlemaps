@@ -1,0 +1,1668 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#1a73e8">
+  <title>🗺️ Navigation Mission GPS</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      color: #fff;
+      padding-bottom: 100px;
+    }
+    
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, #1a73e8, #0d47a1);
+      padding: 20px;
+      text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    
+    .header h1 {
+      font-size: 1.4em;
+      margin-bottom: 5px;
+    }
+    
+    .header .subtitle {
+      font-size: 0.85em;
+      opacity: 0.9;
+    }
+    
+    /* GPS Status Bar */
+    .gps-status {
+      background: #0d47a1;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.85em;
+    }
+    
+    .gps-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .gps-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #f44336;
+      animation: pulse 2s infinite;
+    }
+    
+    .gps-dot.active {
+      background: #4caf50;
+    }
+    
+    .gps-dot.searching {
+      background: #ff9800;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.2); opacity: 0.7; }
+    }
+    
+    /* Progress Bar */
+    .progress-container {
+      background: rgba(255,255,255,0.1);
+      padding: 15px 20px;
+    }
+    
+    .progress-bar {
+      height: 8px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #4caf50, #8bc34a);
+      border-radius: 4px;
+      transition: width 0.5s ease;
+    }
+    
+    .progress-text {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 8px;
+      font-size: 0.8em;
+      opacity: 0.8;
+    }
+    
+    /* Current Segment Card */
+    .current-segment {
+      margin: 20px;
+      background: linear-gradient(135deg, #4caf50, #2e7d32);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 8px 30px rgba(76, 175, 80, 0.4);
+    }
+    
+    .current-segment.arriving {
+      background: linear-gradient(135deg, #ff9800, #f57c00);
+      animation: pulseCard 1s infinite;
+    }
+    
+    @keyframes pulseCard {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+    }
+    
+    .current-segment h2 {
+      font-size: 1.1em;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .current-segment .info {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 15px 0;
+    }
+    
+    .info-item {
+      background: rgba(255,255,255,0.15);
+      padding: 10px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    
+    .info-item .value {
+      font-size: 1.4em;
+      font-weight: bold;
+    }
+    
+    .info-item .label {
+      font-size: 0.75em;
+      opacity: 0.8;
+    }
+    
+    /* Navigation Buttons */
+    .nav-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    
+    .nav-button {
+      width: 100%;
+      padding: 16px;
+      background: rgba(255,255,255,0.95);
+      color: #2e7d32;
+      border: none;
+      border-radius: 12px;
+      font-size: 1.1em;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: transform 0.2s;
+    }
+    
+    .nav-button:active {
+      transform: scale(0.98);
+    }
+    
+    .nav-button.secondary {
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+      font-size: 0.95em;
+      padding: 12px;
+    }
+    
+    .nav-button.waze {
+      background: #33ccff;
+      color: #000;
+    }
+    
+    /* Auto-switch countdown */
+    .auto-switch {
+      background: rgba(0,0,0,0.3);
+      border-radius: 12px;
+      padding: 15px;
+      margin-top: 15px;
+      text-align: center;
+    }
+    
+    .countdown {
+      font-size: 2em;
+      font-weight: bold;
+      margin: 10px 0;
+    }
+    
+    .auto-switch-buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    
+    .auto-switch-buttons button {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    
+    .btn-skip {
+      background: #fff;
+      color: #333;
+    }
+    
+    .btn-cancel {
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+    }
+    
+    /* Segments List */
+    .segments-list {
+      padding: 20px;
+    }
+    
+    .segments-list h3 {
+      margin-bottom: 15px;
+      font-size: 1em;
+      opacity: 0.8;
+    }
+    
+    .segment-item {
+      background: rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+    
+    .segment-item:active {
+      transform: scale(0.98);
+    }
+    
+    .segment-item.completed {
+      background: rgba(76, 175, 80, 0.2);
+      border: 1px solid rgba(76, 175, 80, 0.5);
+    }
+    
+    .segment-item.current {
+      background: rgba(26, 115, 232, 0.3);
+      border: 2px solid #1a73e8;
+    }
+    
+    .segment-item.upcoming {
+      opacity: 0.6;
+    }
+    
+    .segment-number {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+    
+    .segment-item.completed .segment-number {
+      background: #4caf50;
+    }
+    
+    .segment-item.current .segment-number {
+      background: #1a73e8;
+    }
+    
+    .segment-details {
+      flex: 1;
+    }
+    
+    .segment-details .name {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    
+    .segment-details .meta {
+      font-size: 0.8em;
+      opacity: 0.7;
+    }
+    
+    .segment-status {
+      font-size: 1.5em;
+    }
+    
+    /* Settings Panel */
+    .settings-toggle {
+      position: fixed;
+      bottom: 80px;
+      right: 20px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: #1a73e8;
+      border: none;
+      color: #fff;
+      font-size: 1.5em;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(26, 115, 232, 0.4);
+      z-index: 90;
+    }
+    
+    .settings-panel {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #1a1a2e;
+      border-radius: 20px 20px 0 0;
+      padding: 20px;
+      transform: translateY(100%);
+      transition: transform 0.3s ease;
+      z-index: 95;
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+    
+    .settings-panel.open {
+      transform: translateY(0);
+    }
+    
+    .settings-panel h3 {
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .setting-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 15px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .setting-item label {
+      flex: 1;
+    }
+    
+    .setting-item .description {
+      font-size: 0.8em;
+      opacity: 0.6;
+      margin-top: 4px;
+    }
+    
+    .toggle-switch {
+      width: 50px;
+      height: 28px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 14px;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    
+    .toggle-switch.active {
+      background: #4caf50;
+    }
+    
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      background: #fff;
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      transition: transform 0.3s;
+    }
+    
+    .toggle-switch.active::after {
+      transform: translateX(22px);
+    }
+    
+    .range-input {
+      width: 100px;
+      accent-color: #1a73e8;
+    }
+    
+    /* Loading Screen */
+    .loading-screen {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+    
+    .loading-screen.hidden {
+      display: none;
+    }
+    
+    .loader {
+      width: 60px;
+      height: 60px;
+      border: 4px solid rgba(255,255,255,0.2);
+      border-top-color: #1a73e8;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .loading-screen p {
+      margin-top: 20px;
+      opacity: 0.8;
+    }
+    
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 100px;
+      left: 20px;
+      right: 20px;
+      background: #323232;
+      color: #fff;
+      padding: 16px 20px;
+      border-radius: 12px;
+      transform: translateY(150%);
+      transition: transform 0.3s ease;
+      z-index: 150;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .toast.show {
+      transform: translateY(0);
+    }
+    
+    .toast.success {
+      background: #4caf50;
+    }
+    
+    .toast.warning {
+      background: #ff9800;
+    }
+    
+    .toast.error {
+      background: #f44336;
+    }
+    
+    /* No Mission Screen */
+    .no-mission {
+      padding: 40px 20px;
+      text-align: center;
+    }
+    
+    .no-mission .icon {
+      font-size: 4em;
+      margin-bottom: 20px;
+    }
+    
+    .no-mission h2 {
+      margin-bottom: 10px;
+    }
+    
+    .no-mission p {
+      opacity: 0.7;
+      margin-bottom: 30px;
+    }
+    
+    .file-input-label {
+      display: inline-block;
+      padding: 16px 32px;
+      background: #1a73e8;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    
+    #fileInput {
+      display: none;
+    }
+    
+    /* Debug Panel */
+    .debug-panel {
+      background: rgba(0,0,0,0.5);
+      margin: 20px;
+      padding: 15px;
+      border-radius: 12px;
+      font-family: monospace;
+      font-size: 0.75em;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    
+    .debug-panel.hidden {
+      display: none;
+    }
+    
+    .debug-line {
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .debug-line.error { color: #f44336; }
+    .debug-line.success { color: #4caf50; }
+    .debug-line.warning { color: #ff9800; }
+    
+    /* App selector modal */
+    .app-selector {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 300;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    
+    .app-selector.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    
+    .app-selector-content {
+      background: #1a1a2e;
+      border-radius: 20px;
+      padding: 25px;
+      width: 90%;
+      max-width: 350px;
+    }
+    
+    .app-selector h3 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .app-option {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      padding: 15px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 12px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    .app-option:active {
+      background: rgba(255,255,255,0.2);
+    }
+    
+    .app-option .icon {
+      font-size: 2em;
+    }
+    
+    .app-option .name {
+      font-weight: bold;
+    }
+    
+    .app-option .desc {
+      font-size: 0.8em;
+      opacity: 0.7;
+    }
+    
+    .app-selector-close {
+      width: 100%;
+      padding: 15px;
+      background: rgba(255,255,255,0.1);
+      border: none;
+      border-radius: 12px;
+      color: #fff;
+      font-size: 1em;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+  </style>
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    #mapPanel {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      flex-direction: column;
+      background: #000;
+    }
+    #mapPanel.visible { display: flex; }
+    #mapPanelHeader {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      background: linear-gradient(135deg, #1a73e8, #0d47a1);
+      color: white;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    #mapPanelBack {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 1em;
+      cursor: pointer;
+    }
+    #leafletMap { flex: 1; }
+  </style>
+</head>
+<body>
+  <!-- Loading Screen -->
+  <div class="loading-screen" id="loadingScreen">
+    <div class="loader"></div>
+    <p id="loadingText">Chargement de la mission...</p>
+  </div>
+  
+  <!-- Toast Notification -->
+  <div class="toast" id="toast">
+    <span class="toast-icon">ℹ️</span>
+    <span class="toast-message"></span>
+  </div>
+  
+  <!-- App Selector Modal -->
+  <div class="app-selector" id="appSelector">
+    <div class="app-selector-content">
+      <h3>🗺️ Choisir l'application</h3>
+      <div class="app-option" onclick="launchGoogleMapsNav()">
+        <div class="icon">🗺️</div>
+        <div>
+          <div class="name">Google Maps</div>
+          <div class="desc">Navigation turn-by-turn</div>
+        </div>
+      </div>
+      <div class="app-option" onclick="launchWaze()">
+        <div class="icon">🚗</div>
+        <div>
+          <div class="name">Waze</div>
+          <div class="desc">Navigation avec alertes trafic</div>
+        </div>
+      </div>
+      <div class="app-option" onclick="openMapPanel()">
+        <div class="icon">👁️</div>
+        <div>
+          <div class="name">Aperçu itinéraire</div>
+          <div class="desc">Voir le trajet sans navigation</div>
+        </div>
+      </div>
+      <div class="app-option" onclick="openLeafletNav()">
+        <div class="icon">🧭</div>
+        <div>
+          <div class="name">Navigation Leaflet</div>
+          <div class="desc">Carte interactive + position en temps réel</div>
+        </div>
+      </div>
+      <button class="app-selector-close" onclick="closeAppSelector()">Annuler</button>
+    </div>
+  </div>
+  
+  <!-- Main App -->
+  <div id="app">
+    <!-- Header -->
+    <div class="header">
+      <h1>🗺️ Navigation Mission</h1>
+      <div class="subtitle" id="missionName">Aucune mission chargée</div>
+    </div>
+    
+    <!-- GPS Status -->
+    <div class="gps-status">
+      <div class="gps-indicator">
+        <div class="gps-dot" id="gpsDot"></div>
+        <span id="gpsStatus">GPS inactif</span>
+      </div>
+      <div id="gpsCoords">--</div>
+    </div>
+    
+    <!-- Progress -->
+    <div class="progress-container" id="progressContainer" style="display: none;">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+      </div>
+      <div class="progress-text">
+        <span id="progressText">0 / 0 segments</span>
+        <span id="progressPercent">0%</span>
+      </div>
+    </div>
+    
+    <!-- Current Segment -->
+    <div class="current-segment" id="currentSegment" style="display: none;">
+      <h2>
+        <span>📍 Segment actuel</span>
+        <span id="currentSegmentNumber">#1</span>
+      </h2>
+      <div class="info">
+        <div class="info-item">
+          <div class="value" id="currentPoints">0</div>
+          <div class="label">Points</div>
+        </div>
+        <div class="info-item">
+          <div class="value" id="distanceToEnd">--</div>
+          <div class="label">Distance fin</div>
+        </div>
+      </div>
+      
+      <div class="nav-buttons">
+        <button class="nav-button" id="btnNavigate" onclick="showAppSelector()">
+          🚀 DÉMARRER LA NAVIGATION
+        </button>
+        <div style="display: flex; gap: 10px;">
+          <button class="nav-button secondary" style="flex:1" onclick="previousSegment()">
+            ⬅️ Précédent
+          </button>
+          <button class="nav-button secondary" style="flex:1" onclick="nextSegment()">
+            Suivant ➡️
+          </button>
+        </div>
+      </div>
+      
+      <!-- Auto-switch countdown (hidden by default) -->
+      <div class="auto-switch" id="autoSwitch" style="display: none;">
+        <div>🎯 Destination atteinte !</div>
+        <div class="countdown" id="countdown">5</div>
+        <div>Passage au segment suivant...</div>
+        <div class="auto-switch-buttons">
+          <button class="btn-skip" id="btnSkipNow" onclick="skipToNextNow()">▶️ Maintenant</button>
+          <button class="btn-cancel" id="btnCancelSwitch" onclick="cancelAutoSwitch()">✖️ Annuler</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- No Mission Screen -->
+    <div class="no-mission" id="noMission">
+      <div class="icon">📂</div>
+      <h2>Aucune mission</h2>
+      <p>Chargez un fichier JSON de mission ou utilisez un lien magique</p>
+      <label class="file-input-label">
+        📁 Charger un fichier JSON
+        <input type="file" id="fileInput" accept=".json,application/json">
+      </label>
+    </div>
+    
+    <!-- Segments List -->
+    <div class="segments-list" id="segmentsList" style="display: none;">
+      <h3>📋 Tous les segments</h3>
+      <div id="segmentsContainer"></div>
+    </div>
+    
+    <!-- Debug Panel -->
+    <div class="debug-panel hidden" id="debugPanel">
+      <div id="debugLog"></div>
+    </div>
+  </div>
+  
+  <!-- Settings Toggle -->
+  <button class="settings-toggle" id="settingsToggle" onclick="toggleSettings()">⚙️</button>
+  
+  <!-- Settings Panel -->
+  <div class="settings-panel" id="settingsPanel">
+    <h3>
+      <span>⚙️ Paramètres</span>
+      <button onclick="toggleSettings()" style="background:none;border:none;color:#fff;font-size:1.5em;cursor:pointer;">✕</button>
+    </h3>
+    
+    <div class="setting-item">
+      <label>
+        <div>🛰️ Tracking GPS</div>
+        <div class="description">Suivre la position en temps réel</div>
+      </label>
+      <div class="toggle-switch active" id="toggleGps" onclick="toggleSetting('gpsEnabled')"></div>
+    </div>
+    
+    <div class="setting-item">
+      <label>
+        <div>🔄 Switch automatique</div>
+        <div class="description">Passer au segment suivant automatiquement</div>
+      </label>
+      <div class="toggle-switch active" id="toggleAutoSwitch" onclick="toggleSetting('autoSwitch')"></div>
+    </div>
+    
+    <div class="setting-item">
+      <label>
+        <div>🔔 Notifications sonores</div>
+        <div class="description">Alerter à l'arrivée</div>
+      </label>
+      <div class="toggle-switch active" id="toggleSound" onclick="toggleSetting('soundEnabled')"></div>
+    </div>
+    
+    <div class="setting-item">
+      <label>
+        <div>📳 Vibration</div>
+        <div class="description">Vibrer à l'arrivée</div>
+      </label>
+      <div class="toggle-switch active" id="toggleVibration" onclick="toggleSetting('vibrationEnabled')"></div>
+    </div>
+    
+    <div class="setting-item">
+      <label>
+        <div>🎯 Rayon de détection</div>
+        <div class="description">Distance pour détecter l'arrivée</div>
+      </label>
+      <input type="range" class="range-input" id="detectionRadius" min="10" max="100" value="20" onchange="updateRadius()">
+      <span id="radiusValue">20m</span>
+    </div>
+    
+    <div class="setting-item">
+      <label>
+        <div>⏱️ Délai avant switch</div>
+        <div class="description">Secondes avant passage auto</div>
+      </label>
+      <input type="range" class="range-input" id="switchDelay" min="3" max="15" value="5" onchange="updateDelay()">
+      <span id="delayValue">5s</span>
+    </div>
+    
+    <div class="setting-item">
+      <label>
+        <div>🐛 Mode debug</div>
+        <div class="description">Afficher les logs</div>
+      </label>
+      <div class="toggle-switch" id="toggleDebug" onclick="toggleSetting('debugMode')"></div>
+    </div>
+    
+    <div class="setting-item" style="border: none;">
+      <button onclick="resetMission()" style="width:100%;padding:15px;background:#f44336;color:#fff;border:none;border-radius:8px;font-weight:bold;cursor:pointer;">
+        🔄 Réinitialiser la mission
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // ========================================
+    // CONFIGURATION & STATE
+    // ========================================
+    
+    const CONFIG = {
+      gpsEnabled: true,
+      autoSwitch: true,
+      soundEnabled: true,
+      vibrationEnabled: true,
+      detectionRadius: 20, // mètres - réduit à 20m comme demandé
+      switchDelay: 5,
+      debugMode: false
+    };
+    
+    let STATE = {
+      mission: null,
+      segments: [],
+      currentSegmentIndex: 0,
+      completedSegments: [],
+      userPosition: null,
+      gpsWatchId: null,
+      countdownInterval: null,
+      isArriving: false
+    };
+    
+    // ========================================
+    // UTILITY FUNCTIONS
+    // ========================================
+    
+    function log(message, type = 'info') {
+      const time = new Date().toLocaleTimeString();
+      const prefix = { 'info': 'ℹ️', 'success': '✅', 'warning': '⚠️', 'error': '❌' }[type] || 'ℹ️';
+      console.log(`[${time}] ${prefix} ${message}`);
+      
+      if (CONFIG.debugMode) {
+        const debugLog = document.getElementById('debugLog');
+        const line = document.createElement('div');
+        line.className = `debug-line ${type}`;
+        line.textContent = `[${time}] ${prefix} ${message}`;
+        debugLog.insertBefore(line, debugLog.firstChild);
+      }
+    }
+    
+    function showToast(message, type = 'info', duration = 3000) {
+      const toast = document.getElementById('toast');
+      const icons = { 'info': 'ℹ️', 'success': '✅', 'warning': '⚠️', 'error': '❌' };
+      toast.querySelector('.toast-icon').textContent = icons[type] || 'ℹ️';
+      toast.querySelector('.toast-message').textContent = message;
+      toast.className = `toast ${type} show`;
+      setTimeout(() => toast.classList.remove('show'), duration);
+    }
+    
+    function detectPlatform() {
+      const ua = navigator.userAgent || navigator.vendor || window.opera;
+      if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) return 'ios';
+      if (/android/i.test(ua)) return 'android';
+      return 'desktop';
+    }
+    
+    // ========================================
+    // GPS FUNCTIONS
+    // ========================================
+    
+    function startGpsTracking() {
+      if (!navigator.geolocation) {
+        log('Géolocalisation non supportée', 'error');
+        showToast('GPS non supporté', 'error');
+        return;
+      }
+      
+      log('Démarrage du tracking GPS...', 'info');
+      updateGpsStatus('searching', 'Recherche GPS...');
+      
+      STATE.gpsWatchId = navigator.geolocation.watchPosition(
+        onGpsSuccess,
+        onGpsError,
+        { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+      );
+    }
+    
+    function stopGpsTracking() {
+      if (STATE.gpsWatchId !== null) {
+        navigator.geolocation.clearWatch(STATE.gpsWatchId);
+        STATE.gpsWatchId = null;
+        updateGpsStatus('inactive', 'GPS inactif');
+      }
+    }
+    
+    function onGpsSuccess(position) {
+      STATE.userPosition = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+        accuracy: position.coords.accuracy
+      };
+      
+      updateGpsStatus('active', `Précision: ${Math.round(position.coords.accuracy)}m`);
+      document.getElementById('gpsCoords').textContent = 
+        `${STATE.userPosition.lat.toFixed(5)}, ${STATE.userPosition.lng.toFixed(5)}`;
+      
+      checkArrival();
+    }
+    
+    function onGpsError(error) {
+      const messages = { 1: 'Permission refusée', 2: 'Position indisponible', 3: 'Timeout' };
+      log(messages[error.code] || 'Erreur GPS', 'error');
+      updateGpsStatus('error', messages[error.code] || 'Erreur GPS');
+    }
+    
+    function updateGpsStatus(status, text) {
+      const dot = document.getElementById('gpsDot');
+      dot.className = 'gps-dot';
+      if (status === 'active') dot.classList.add('active');
+      if (status === 'searching') dot.classList.add('searching');
+      document.getElementById('gpsStatus').textContent = text;
+    }
+    
+    // ========================================
+    // DISTANCE & ARRIVAL
+    // ========================================
+    
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371000;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+    
+    function formatDistance(meters) {
+      return meters < 1000 ? `${Math.round(meters)}m` : `${(meters / 1000).toFixed(1)}km`;
+    }
+    
+    function checkArrival() {
+      if (!STATE.userPosition || !STATE.segments.length) return;
+      
+      const segment = STATE.segments[STATE.currentSegmentIndex];
+      if (!segment) return;
+      
+      // Récupérer les coordonnées de destination
+      let destLat, destLng;
+      
+      if (segment.destination) {
+        // Format: "lat,lng" string
+        if (typeof segment.destination === 'string') {
+          const coords = segment.destination.split(',');
+          destLat = parseFloat(coords[0]);
+          destLng = parseFloat(coords[1]);
+        } else if (segment.destination.latitude) {
+          destLat = segment.destination.latitude;
+          destLng = segment.destination.longitude;
+        }
+      } else if (segment.points && segment.points.length > 0) {
+        const lastPoint = segment.points[segment.points.length - 1];
+        destLat = lastPoint.latitude;
+        destLng = lastPoint.longitude;
+      }
+      
+      if (!destLat || !destLng) return;
+      
+      const distance = calculateDistance(
+        STATE.userPosition.lat, STATE.userPosition.lng,
+        destLat, destLng
+      );
+      
+      document.getElementById('distanceToEnd').textContent = formatDistance(distance);
+      
+      if (distance <= CONFIG.detectionRadius && !STATE.isArriving) {
+        onArrival();
+      }
+    }
+    
+    function onArrival() {
+      STATE.isArriving = true;
+      log('🎯 DESTINATION ATTEINTE !', 'success');
+      
+      document.getElementById('currentSegment').classList.add('arriving');
+      showToast('🎯 Destination atteinte !', 'success');
+      
+      if (CONFIG.soundEnabled) playSound();
+      if (CONFIG.vibrationEnabled && navigator.vibrate) {
+        navigator.vibrate([200, 100, 200, 100, 200]);
+      }
+      
+      if (CONFIG.autoSwitch && STATE.currentSegmentIndex < STATE.segments.length - 1) {
+        startAutoSwitchCountdown();
+      } else if (STATE.currentSegmentIndex >= STATE.segments.length - 1) {
+        showToast('🎉 Mission terminée !', 'success', 5000);
+        markCurrentAsCompleted();
+      }
+    }
+    
+    function playSound() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = 880;
+        gain.gain.value = 0.3;
+        osc.start();
+        setTimeout(() => { osc.frequency.value = 1100; setTimeout(() => osc.stop(), 150); }, 150);
+      } catch (e) {}
+    }
+    
+    // ========================================
+    // AUTO-SWITCH
+    // ========================================
+    
+    function startAutoSwitchCountdown() {
+      document.getElementById('autoSwitch').style.display = 'block';
+      let seconds = CONFIG.switchDelay;
+      document.getElementById('countdown').textContent = seconds;
+      
+      STATE.countdownInterval = setInterval(() => {
+        seconds--;
+        document.getElementById('countdown').textContent = seconds;
+        if (seconds <= 0) {
+          clearInterval(STATE.countdownInterval);
+          goToNextSegment();
+        }
+      }, 1000);
+    }
+    
+    function cancelAutoSwitch() {
+      if (STATE.countdownInterval) clearInterval(STATE.countdownInterval);
+      document.getElementById('autoSwitch').style.display = 'none';
+      markCurrentAsCompleted();
+      STATE.isArriving = false;
+      document.getElementById('currentSegment').classList.remove('arriving');
+    }
+    
+    function skipToNextNow() {
+      if (STATE.countdownInterval) clearInterval(STATE.countdownInterval);
+      goToNextSegment();
+    }
+    
+    // ========================================
+    // NAVIGATION URLS - FIXED FOR AUTO-START
+    // ========================================
+    
+    function getSegmentCoordinates(segment) {
+      let origin, destination, waypoints = [];
+      
+      // Extraire origine
+      if (segment.origin) {
+        if (typeof segment.origin === 'string') {
+          origin = segment.origin;
+        } else if (segment.origin.latitude) {
+          origin = `${segment.origin.latitude},${segment.origin.longitude}`;
+        }
+      } else if (segment.points && segment.points.length > 0) {
+        const p = segment.points[0];
+        origin = `${p.latitude},${p.longitude}`;
+      }
+      
+      // Extraire destination
+      if (segment.destination) {
+        if (typeof segment.destination === 'string') {
+          destination = segment.destination;
+        } else if (segment.destination.latitude) {
+          destination = `${segment.destination.latitude},${segment.destination.longitude}`;
+        }
+      } else if (segment.points && segment.points.length > 0) {
+        const p = segment.points[segment.points.length - 1];
+        destination = `${p.latitude},${p.longitude}`;
+      }
+      
+      // Extraire waypoints
+      if (segment.points && segment.points.length > 2) {
+        waypoints = segment.points.slice(1, -1).map(p => `${p.latitude},${p.longitude}`);
+      }
+      
+      return { origin, destination, waypoints };
+    }
+    
+    function buildGoogleMapsNavUrl(segment) {
+      const { origin, destination, waypoints } = getSegmentCoordinates(segment);
+      
+      // Utiliser l'URL web complète avec TOUS les points + dir_action=navigate
+      // Cela affiche tous les waypoints ET lance la navigation automatiquement
+      
+      let url = `https://www.google.com/maps/dir/?api=1`;
+      url += `&origin=${origin}`;
+      url += `&destination=${destination}`;
+      url += `&travelmode=driving`;
+      url += `&dir_action=navigate`; // Force le lancement de la navigation
+      
+      if (waypoints.length > 0) {
+        url += `&waypoints=${waypoints.join('|')}`;
+      }
+      
+      return url;
+    }
+    
+    function buildGoogleMapsPreviewUrl(segment) {
+      const { origin, destination, waypoints } = getSegmentCoordinates(segment);
+      let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
+      if (waypoints.length > 0) {
+        url += `&waypoints=${waypoints.join('|')}`;
+      }
+      return url;
+    }
+    
+    function buildWazeUrl(segment) {
+      const { destination } = getSegmentCoordinates(segment);
+      const [lat, lng] = destination.split(',');
+      return `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
+    }
+    
+    // ========================================
+    // APP SELECTOR
+    // ========================================
+    
+    function showAppSelector() {
+      document.getElementById('appSelector').classList.add('show');
+    }
+    
+    function closeAppSelector() {
+      document.getElementById('appSelector').classList.remove('show');
+    }
+    
+    function launchGoogleMapsNav() {
+      closeAppSelector();
+      const segment = STATE.segments[STATE.currentSegmentIndex];
+      if (!segment) return;
+      
+      const url = buildGoogleMapsNavUrl(segment);
+      log(`Lancement navigation Google Maps: ${url}`, 'info');
+      
+      // Essayer d'ouvrir l'app native, sinon fallback sur le web
+      const platform = detectPlatform();
+      
+      if (platform === 'ios') {
+        // Essayer le schéma natif d'abord
+        const nativeUrl = buildGoogleMapsNavUrl(segment);
+        window.location.href = nativeUrl;
+        
+        // Fallback après 2 secondes si l'app n'est pas installée
+        setTimeout(() => {
+          const webUrl = buildGoogleMapsPreviewUrl(segment) + '&dir_action=navigate';
+          window.open(webUrl, '_blank');
+        }, 2000);
+      } else {
+        window.open(url, '_blank');
+      }
+      
+      showToast('Navigation lancée !', 'success');
+    }
+    
+    function launchWaze() {
+      closeAppSelector();
+      const segment = STATE.segments[STATE.currentSegmentIndex];
+      if (!segment) return;
+      
+      const url = buildWazeUrl(segment);
+      log(`Lancement Waze: ${url}`, 'info');
+      window.open(url, '_blank');
+      showToast('Waze lancé !', 'success');
+    }
+    
+    // ── Carte Leaflet ──────────────────────────────────────────────
+    let _leafletMap = null;
+
+    function openMapPanel() {
+      closeAppSelector();
+      const segment = STATE.segments[STATE.currentSegmentIndex];
+      if (!segment) return;
+
+      document.getElementById('mapPanel').classList.add('visible');
+      document.getElementById('mapTitle').textContent = segment.name || 'Aperçu itinéraire';
+
+      // Initialiser la carte une seule fois
+      if (!_leafletMap) {
+        _leafletMap = L.map('leafletMap');
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors'
+        }).addTo(_leafletMap);
+      } else {
+        _leafletMap.eachLayer(layer => {
+          if (!(layer instanceof L.TileLayer)) _leafletMap.removeLayer(layer);
+        });
+      }
+
+      // Coordonnées depuis segment.points
+      const points = (segment.points || []).map(p => [p.latitude, p.longitude]);
+      if (points.length === 0) { showToast('Aucun point GPS dans ce segment', 'warning'); return; }
+
+      // 1) Polyligne bleue (dessinée en premier, sous les points)
+      L.polyline(points, { color: '#1f77b4', weight: 4, opacity: 0.85 }).addTo(_leafletMap);
+
+      // 2) Points rouges par-dessus
+      points.forEach((pt, i) => {
+        L.circleMarker(pt, {
+          radius: 7,
+          color: 'white',
+          weight: 1.5,
+          fillColor: 'red',
+          fillOpacity: 1.0
+        })
+        .bindTooltip(`#${i + 1}`, { permanent: false, direction: 'top' })
+        .addTo(_leafletMap);
+      });
+
+      // Cadrer la carte sur tous les points
+      _leafletMap.fitBounds(L.latLngBounds(points), { padding: [24, 24] });
+      _leafletMap.invalidateSize();
+    }
+
+    function closeMapPanel() {
+      document.getElementById('mapPanel').classList.remove('visible');
+      if (_leafletMap) setTimeout(() => _leafletMap.invalidateSize(), 100);
+    }
+
+    // ── Navigation Leaflet (tous segments + GPS temps réel) ───────────
+    let _userMarker     = null;
+    let _accuracyCircle = null;
+    let _navWatchId     = null;
+
+    function openLeafletNav() {
+      closeAppSelector();
+      document.getElementById('mapPanel').classList.add('visible');
+      document.getElementById('mapTitle').textContent = '🗺️ Navigation';
+
+      // Réutiliser l'instance carte existante ou en créer une
+      if (!_leafletMap) {
+        _leafletMap = L.map('leafletMap');
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors'
+        }).addTo(_leafletMap);
+      } else {
+        // Nettoyer toutes les couches sauf le fond de carte
+        _leafletMap.eachLayer(l => {
+          if (!(l instanceof L.TileLayer)) _leafletMap.removeLayer(l);
+        });
+        _userMarker = null;
+        _accuracyCircle = null;
+      }
+
+      const allPoints = [];
+
+      STATE.segments.forEach((seg, idx) => {
+        const pts = (seg.points || []).map(p => [p.latitude, p.longitude]);
+        if (pts.length === 0) return;
+
+        const isCompleted = STATE.completedSegments.includes(idx);
+        const isCurrent   = idx === STATE.currentSegmentIndex;
+
+        const lineColor   = isCompleted ? '#4caf50' : isCurrent ? '#1a73e8' : '#888';
+        const dotColor    = isCompleted ? '#4caf50' : isCurrent ? 'red'     : '#aaa';
+        const lineWeight  = isCurrent ? 5 : 3;
+        const lineOpacity = isCompleted ? 0.5 : isCurrent ? 1.0 : 0.6;
+
+        // Polyligne du segment
+        L.polyline(pts, { color: lineColor, weight: lineWeight, opacity: lineOpacity })
+         .bindTooltip(seg.name || `Segment ${idx + 1}`)
+         .addTo(_leafletMap);
+
+        // Points du segment
+        pts.forEach((pt, i) => {
+          L.circleMarker(pt, {
+            radius: isCurrent ? 7 : 5,
+            color: 'white', weight: 1.5,
+            fillColor: dotColor, fillOpacity: isCurrent ? 1.0 : 0.7
+          })
+          .bindTooltip(`Seg ${idx + 1} • #${i + 1}`, { permanent: false })
+          .addTo(_leafletMap);
+        });
+
+        allPoints.push(...pts);
+      });
+
+      if (allPoints.length > 0)
+        _leafletMap.fitBounds(L.latLngBounds(allPoints), { padding: [20, 20] });
+
+      _leafletMap.invalidateSize();
+      _startLeafletGps();
+    }
+
+    function _startLeafletGps() {
+      if (!navigator.geolocation) return;
+      // Annuler un éventuel watch précédent
+      if (_navWatchId !== null) {
+        navigator.geolocation.clearWatch(_navWatchId);
+        _navWatchId = null;
+      }
+      _navWatchId = navigator.geolocation.watchPosition(
+        pos => {
+          const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+          const latlng = [lat, lng];
+          if (!_userMarker) {
+            const icon = L.divIcon({
+              className: '',
+              html: '<div style="width:16px;height:16px;border-radius:50%;background:#1a73e8;border:3px solid white;box-shadow:0 0 6px rgba(0,0,0,.4);"></div>',
+              iconSize: [16, 16], iconAnchor: [8, 8]
+            });
+            _userMarker     = L.marker(latlng, { icon, zIndexOffset: 1000 }).addTo(_leafletMap);
+            _accuracyCircle = L.circle(latlng, { radius: accuracy, color: '#1a73e8', fillOpacity: 0.1, weight: 1 }).addTo(_leafletMap);
+          } else {
+            _userMarker.setLatLng(latlng);
+            _accuracyCircle.setLatLng(latlng).setRadius(accuracy);
+          }
+        },
+        () => {},
+        { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+      );
+    }
+
+    // ========================================
+    // SEGMENT NAVIGATION
+    // ========================================
+    
+    function markCurrentAsCompleted() {
+      if (!STATE.completedSegments.includes(STATE.currentSegmentIndex)) {
+        STATE.completedSegments.push(STATE.currentSegmentIndex);
+        updateProgress();
+        renderSegmentsList();
+        saveState();
+      }
+    }
+    
+    function goToNextSegment() {
+      markCurrentAsCompleted();
+      
+      if (STATE.currentSegmentIndex < STATE.segments.length - 1) {
+        STATE.currentSegmentIndex++;
+        STATE.isArriving = false;
+        
+        document.getElementById('autoSwitch').style.display = 'none';
+        document.getElementById('currentSegment').classList.remove('arriving');
+        
+        updateCurrentSegmentDisplay();
+        renderSegmentsList();
+        saveState();
+        
+        showToast(`Segment ${STATE.currentSegmentIndex + 1} / ${STATE.segments.length}`, 'info');
+        
+        // Lancer automatiquement la navigation vers le segment suivant
+        setTimeout(() => launchGoogleMapsNav(), 500);
+      } else {
+        showToast('🎉 Mission terminée !', 'success', 5000);
+      }
+    }
+    
+    function previousSegment() {
+      if (STATE.currentSegmentIndex > 0) {
+        STATE.currentSegmentIndex--;
+        STATE.isArriving = false;
+        document.getElementById('currentSegment').classList.remove('arriving');
+        document.getElementById('autoSwitch').style.display = 'none';
+        updateCurrentSegmentDisplay();
+        renderSegmentsList();
+        saveState();
+      }
+    }
+    
+    function nextSegment() {
+      if (STATE.currentSegmentIndex < STATE.segments.length - 1) {
+        STATE.currentSegmentIndex++;
+        STATE.isArriving = false;
+        document.getElementById('currentSegment').classList.remove('arriving');
+        document.getElementById('autoSwitch').style.display = 'none';
+        updateCurrentSegmentDisplay();
+        renderSegmentsList();
+        saveState();
+      }
+    }
+    
+    function goToSegment(index) {
+      STATE.currentSegmentIndex = index;
+      STATE.isArriving = false;
+      document.getElementById('autoSwitch').style.display = 'none';
+      document.getElementById('currentSegment').classList.remove('arriving');
+      updateCurrentSegmentDisplay();
+      renderSegmentsList();
+      saveState();
+    }
+    
+    // ========================================
+    // UI UPDATES
+    // ========================================
+    
+    function updateCurrentSegmentDisplay() {
+      const segment = STATE.segments[STATE.currentSegmentIndex];
+      if (!segment) return;
+      
+      document.getElementById('currentSegmentNumber').textContent = `#${STATE.currentSegmentIndex + 1}`;
+      document.getElementById('currentPoints').textContent = segment.points_count || segment.points?.length || '?';
+      document.getElementById('distanceToEnd').textContent = '--';
+    }
+    
+    function updateProgress() {
+      const total = STATE.segments.length;
+      const completed = STATE.completedSegments.length;
+      const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+      
+      document.getElementById('progressFill').style.width = `${percent}%`;
+      document.getElementById('progressText').textContent = `${completed} / ${total} segments`;
+      document.getElementById('progressPercent').textContent = `${percent}%`;
+    }
+    
+    function renderSegmentsList() {
+      const container = document.getElementById('segmentsContainer');
+      container.innerHTML = '';
+      
+      STATE.segments.forEach((segment, index) => {
+        const isCompleted = STATE.completedSegments.includes(index);
+        const isCurrent = index === STATE.currentSegmentIndex;
+        const isUpcoming = index > STATE.currentSegmentIndex && !isCompleted;
+        
+        const div = document.createElement('div');
+        div.className = `segment-item ${isCompleted ? 'completed' : ''} ${isCurrent ? 'current' : ''} ${isUpcoming ? 'upcoming' : ''}`;
+        div.onclick = () => goToSegment(index);
+        
+        div.innerHTML = `
+          <div class="segment-number">${isCompleted ? '✓' : index + 1}</div>
+          <div class="segment-details">
+            <div class="name">${segment.name || `Segment ${index + 1}`}</div>
+            <div class="meta">${segment.points_count || segment.points?.length || '?'} points</div>
+          </div>
+          <div class="segment-status">${isCompleted ? '✅' : isCurrent ? '📍' : '○'}</div>
+        `;
+        
+        container.appendChild(div);
+      });
+    }
+    
+    // ========================================
+    // MISSION LOADING
+    // ========================================
+    
+    function loadMission(data) {
+      try {
+        STATE.mission = data.mission || { name: 'Mission' };
+        STATE.segments = data.segments || [];
+        
+        if (STATE.segments.length === 0) {
+          throw new Error('Aucun segment');
+        }
+        
+        const savedState = loadSavedState();
+        if (savedState && savedState.missionName === STATE.mission.name) {
+          STATE.currentSegmentIndex = savedState.currentSegmentIndex || 0;
+          STATE.completedSegments = savedState.completedSegments || [];
+        }
+        
+        document.getElementById('missionName').textContent = STATE.mission.name || 'Mission chargée';
+        document.getElementById('noMission').style.display = 'none';
+        document.getElementById('currentSegment').style.display = 'block';
+        document.getElementById('segmentsList').style.display = 'block';
+        document.getElementById('progressContainer').style.display = 'block';
+        
+        updateCurrentSegmentDisplay();
+        updateProgress();
+        renderSegmentsList();
+        
+        if (CONFIG.gpsEnabled) startGpsTracking();
+        
+        log(`Mission chargée: ${STATE.segments.length} segments`, 'success');
+        showToast(`${STATE.segments.length} segments chargés`, 'success');
+        
+      } catch (error) {
+        log(`Erreur: ${error.message}`, 'error');
+        showToast('Erreur de chargement', 'error');
+      }
+    }
+    
+    // ========================================
+    // STATE PERSISTENCE
+    // ========================================
+    
+    function saveState() {
+      try {
+        localStorage.setItem('missionState', JSON.stringify({
+          missionName: STATE.mission?.name,
+          currentSegmentIndex: STATE.currentSegmentIndex,
+          completedSegments: STATE.completedSegments
+        }));
+      } catch (e) {}
+    }
+    
+    function loadSavedState() {
+      try {
+        const saved = localStorage.getItem('missionState');
+        return saved ? JSON.parse(saved) : null;
+      } catch (e) { return null; }
+    }
+    
+    function resetMission() {
+      if (confirm('Réinitialiser la mission ?')) {
+        STATE.currentSegmentIndex = 0;
+        STATE.completedSegments = [];
+        STATE.isArriving = false;
+        localStorage.removeItem('missionState');
+        updateCurrentSegmentDisplay();
+        updateProgress();
+        renderSegmentsList();
+        document.getElementById('currentSegment').classList.remove('arriving');
+        document.getElementById('autoSwitch').style.display = 'none';
+        showToast('Mission réinitialisée', 'success');
+        toggleSettings();
+      }
+    }
+    
+    // ========================================
+    // SETTINGS
+    // ========================================
+    
+    function toggleSettings() {
+      document.getElementById('settingsPanel').classList.toggle('open');
+    }
+    
+    function toggleSetting(setting) {
+      CONFIG[setting] = !CONFIG[setting];
+      const toggleId = {
+        'gpsEnabled': 'toggleGps',
+        'autoSwitch': 'toggleAutoSwitch',
+        'soundEnabled': 'toggleSound',
+        'vibrationEnabled': 'toggleVibration',
+        'debugMode': 'toggleDebug'
+      }[setting];
+      
+      if (toggleId) document.getElementById(toggleId).classList.toggle('active', CONFIG[setting]);
+      if (setting === 'gpsEnabled') CONFIG.gpsEnabled ? startGpsTracking() : stopGpsTracking();
+      if (setting === 'debugMode') document.getElementById('debugPanel').classList.toggle('hidden', !CONFIG.debugMode);
+    }
+    
+    function updateRadius() {
+      CONFIG.detectionRadius = parseInt(document.getElementById('detectionRadius').value);
+      document.getElementById('radiusValue').textContent = `${CONFIG.detectionRadius}m`;
+    }
+    
+    function updateDelay() {
+      CONFIG.switchDelay = parseInt(document.getElementById('switchDelay').value);
+      document.getElementById('delayValue').textContent = `${CONFIG.switchDelay}s`;
+    }
+    
+    // ========================================
+    // FILE & URL LOADING
+    // ========================================
+    
+    document.getElementById('fileInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          loadMission(JSON.parse(ev.target.result));
+        } catch (err) {
+          showToast('Fichier JSON invalide', 'error');
+        }
+      };
+      reader.readAsText(file);
+    });
+    
+    async function loadFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const jsonUrl = params.get('json');
+      
+      if (!jsonUrl) {
+        document.getElementById('loadingScreen').classList.add('hidden');
+        return;
+      }
+      
+      try {
+        document.getElementById('loadingText').textContent = 'Téléchargement...';
+        const response = await fetch(jsonUrl);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        loadMission(data);
+      } catch (error) {
+        log(`Erreur fetch: ${error.message}`, 'error');
+        showToast('Impossible de charger', 'error');
+      }
+      
+      document.getElementById('loadingScreen').classList.add('hidden');
+    }
+    
+    // ========================================
+    // INIT
+    // ========================================
+    
+    document.addEventListener('DOMContentLoaded', () => {
+      log('PWA Navigation initialisée', 'success');
+      loadFromUrl();
+    });
+  </script>
+
+  <!-- Panneau carte Leaflet -->
+  <div id="mapPanel">
+    <div id="mapPanelHeader">
+      <button id="mapPanelBack" onclick="closeMapPanel()">← Retour</button>
+      <span id="mapTitle" style="font-weight:bold;font-size:1.05em;">Aperçu itinéraire</span>
+    </div>
+    <div id="leafletMap"></div>
+  </div>
+</body>
+</html>
